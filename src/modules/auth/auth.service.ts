@@ -11,6 +11,12 @@ import { ConfigService } from '@nestjs/config';
 import { LoginDto } from '@/modules/auth/dto/login.dto';
 import { compare, hash } from 'bcrypt';
 
+interface OAuthProfile {
+  email: string;
+  displayName: string;
+  provider: 'google';
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -60,5 +66,22 @@ export class AuthService {
       expiresIn: this.configService.get('JWT_REFRESH_EXPIRATION_TIME') * 1000,
     });
     return { accessToken, refreshToken };
+  }
+
+  async validateOAuthLogin(profile: OAuthProfile): Promise<User> {
+    const user = await this.userService.findOneByEmail(profile.email);
+
+    if (!user) {
+      const newUser = await this.userService.create({
+        email: profile.email,
+        firstName: profile.displayName,
+        password: await hash(profile.email, 10),
+        lastName: '',
+        phoneNumber: '',
+      });
+      return newUser;
+    }
+
+    return user;
   }
 }
